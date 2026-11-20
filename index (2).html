@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SG Stock & Funds Monitor</title>
+<style>
+  :root{
+    --bg:#f4f6fa; --card:#fff; --ink:#1b2430; --muted:#6a7686; --line:#e3e8ef;
+    --brand:#0b5fff; --good:#0a8f4e; --goodbg:#e4f6ec; --warn:#b26a00; --warnbg:#fff3de;
+    --bad:#c62a2a; --badbg:#fde8e8; --grey:#eef1f6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45}
+  header{background:linear-gradient(135deg,#0b2a6f,#0b5fff);color:#fff;padding:18px 16px 14px}
+  header h1{margin:0;font-size:1.25rem}
+  header p{margin:4px 0 0;font-size:.82rem;opacity:.9}
+  main{max-width:1100px;margin:0 auto;padding:12px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:4px 0 12px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+  .stat small{color:var(--muted);display:block;font-size:.72rem}
+  .stat b{font-size:1.2rem}
+  .stat span{font-size:.72rem;color:var(--muted)}
+  .tabs{display:flex;gap:6px;overflow-x:auto;margin:8px 0;position:sticky;top:0;background:var(--bg);padding:6px 0;z-index:5}
+  .tab{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;font-size:.88rem;cursor:pointer;white-space:nowrap}
+  .tab.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .panel{display:none}.panel.on{display:block}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
+  .box h2{margin:0 0 6px;font-size:1rem}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+  input,select,button{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+  button{cursor:pointer}
+  button.pri{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .picks{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+  .pick{border:1px solid var(--line);border-left:4px solid var(--good);border-radius:10px;padding:10px;background:#fff}
+  .pick b{display:block}
+  .pick small{color:var(--muted)}
+  table{width:100%;border-collapse:collapse;font-size:.88rem}
+  th,td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th{font-size:.74rem;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);cursor:pointer;white-space:nowrap;user-select:none}
+  td.num,th.num{text-align:right}
+  tr.row{cursor:pointer} tr.row:hover{background:#f8faff}
+  tr.detail td{background:#f8faff;padding:10px 14px}
+  tr.detail ul{margin:4px 0 0;padding-left:18px}
+  .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.74rem;font-weight:600}
+  .t-buy{background:var(--goodbg);color:var(--good)}
+  .t-watch{background:var(--warnbg);color:var(--warn)}
+  .t-hold{background:var(--grey);color:var(--muted)}
+  .t-risk{background:var(--badbg);color:var(--bad)}
+  .up{color:var(--good);font-weight:600}.dn{color:var(--bad);font-weight:600}
+  .star{cursor:pointer;font-size:1.1rem;color:#c4cbd6}.star.on{color:#f5a400}
+  .price{border-bottom:1px dashed var(--muted);cursor:text}
+  .muted{color:var(--muted);font-size:.78rem}
+  .zone{color:var(--good);font-weight:700}
+  .links a{color:var(--brand);text-decoration:none;font-size:.8rem}
+  .disc{font-size:.76rem;color:var(--muted);padding:6px 4px 20px}
+  @media(max-width:700px){
+    table,thead,tbody,tr,td{display:block}
+    thead{display:none}
+    tr.row{background:#fff;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;padding:6px 8px}
+    tr.row td{border:0;padding:3px 0;display:flex;justify-content:space-between;gap:10px;text-align:right}
+    tr.row td::before{content:attr(data-l);color:var(--muted);font-size:.74rem;text-align:left}
+    tr.detail{margin:-6px 0 10px}
+    tr.detail td{display:block;border-radius:0 0 10px 10px;border:1px solid var(--line);border-top:0}
+    tr.fund td{border:0;padding:3px 0;display:flex;justify-content:space-between;gap:10px;text-align:right}
+    tr.fund td::before{content:attr(data-l);color:var(--muted);font-size:.74rem;text-align:left}
+    tr.fund{background:#fff;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;padding:6px 8px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🇸🇬 SG Stock &amp; Funds Monitor</h1>
+  <p>Price and analyst data as at <b>20 Nov 2026</b>. Tap a price to edit it. Tap a row to read the review.</p>
+</header>
+
+<main>
+  <div class="cards" id="stats"></div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab on" data-t="picks">⭐ Picks</button>
+    <button class="tab" data-t="stocks">Stocks</button>
+    <button class="tab" data-t="funds">Funds &amp; bonds</button>
+    <button class="tab" data-t="watch">My watchlist</button>
+    <button class="tab" data-t="market">Market view</button>
+  </div>
+
+  <!-- PICKS -->
+  <section class="panel on" id="p-picks">
+    <div class="box">
+      <h2>Shortlist to monitor / consider buying</h2>
+      <p class="muted">Rule: at least 3 analysts, most say Buy, upside to average target is 15% or more, and risk is not high. Upside updates when you edit a price.</p>
+      <div class="picks" id="pickList"></div>
+    </div>
+    <div class="box">
+      <h2>Be careful with</h2>
+      <div id="avoidList"></div>
+    </div>
+  </section>
+
+  <!-- STOCKS -->
+  <section class="panel" id="p-stocks">
+    <div class="toolbar">
+      <input id="q" placeholder="Search name or code" style="flex:1;min-width:140px">
+      <select id="fSector"><option value="">All sectors</option></select>
+      <select id="fSig">
+        <option value="">All signals</option><option>Buy-watch</option><option>Watch</option><option>Hold / avoid</option><option>High risk</option><option>No rating</option>
+      </select>
+      <button id="resetPx">Reset prices</button>
+    </div>
+    <table id="tbl">
+      <thead><tr>
+        <th data-k="n">Stock</th><th data-k="s">Sector</th><th class="num" data-k="p">Price (S$)</th>
+        <th class="num" data-k="tp">Avg target</th><th class="num" data-k="up">Upside</th>
+        <th data-k="bp">Analysts B / H / S</th><th data-k="y">Yield</th><th data-k="sig">Signal</th><th>★</th>
+      </tr></thead>
+      <tbody id="tb"></tbody>
+    </table>
+    <p class="muted">* Banks: trailing dividend yield range for DBS, OCBC and UOB (May 2026). Other yields from Oct 2026 data. "–" means not sourced.</p>
+  </section>
+
+  <!-- FUNDS -->
+  <section class="panel" id="p-funds">
+    <div class="box">
+      <h2>Funds, bonds and cash options</h2>
+      <table>
+        <thead><tr><th>Option</th><th class="num">Rate / yield</th><th>Minimum</th><th>Lock-in</th><th>Notes</th></tr></thead>
+        <tbody id="fundTb"></tbody>
+      </table>
+    </div>
+    <div class="box">
+      <h2>Quick income estimate</h2>
+      <div class="toolbar"><label>Amount (S$) <input id="amt" type="number" value="10000" min="0" step="500"></label></div>
+      <table><thead><tr><th>Option</th><th class="num">Est. income per year (S$)</th></tr></thead><tbody id="calc"></tbody></table>
+      <p class="muted">Simple estimate only. T-bill, SSB, FD and ETF returns differ in risk and timing. ETF price can fall.</p>
+    </div>
+  </section>
+
+  <!-- WATCHLIST -->
+  <section class="panel" id="p-watch">
+    <div class="box">
+      <h2>My watchlist</h2>
+      <p class="muted">Tap ★ in the Stocks tab to add. Set your "buy below" price and the page tells you when the price gets there.</p>
+      <table>
+        <thead><tr><th>Stock</th><th class="num">Price</th><th class="num">Buy below</th><th>Status</th></tr></thead>
+        <tbody id="wTb"></tbody>
+      </table>
+      <p id="wEmpty" class="muted">No stocks yet.</p>
+    </div>
+  </section>
+
+  <!-- MARKET -->
+  <section class="panel" id="p-market">
+    <div class="box">
+      <h2>Market view</h2>
+      <ul>
+        <li><b>STI hit a record 5,041 in Feb 2026.</b> It then pulled back, led by banks (about 4% down at the last DBS review).</li>
+        <li><b>Year-end targets (set in January):</b> Maybank 5,600; DBS 4,880.</li>
+        <li><b>DBS Research stance (12 Nov):</b> 50% cash. Selective buyer, waiting for better prices and clearer macro signals.</li>
+        <li><b>Watchpoints:</b> 3Q results, US rate path, oil price, bond yields.</li>
+        <li><b>Rates:</b> 6-month T-bill 2.07%, up from about 1.4% in early 2026. This raises the bar for yield stocks and REITs.</li>
+        <li><b>Singapore tax:</b> no tax on dividends or capital gains for individuals (per The Kopi Notes).</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h2>Sources used</h2>
+      <ul class="links">
+        <li><a href="https://sginvestors.io/analysts/sti-straits-times-index-constituents-target-price" target="_blank" rel="noopener">SGinvestors.io – STI target prices &amp; ratings (20 Nov 2026)</a></li>
+        <li><a href="https://www.dbs.com.sg/treasures/aics/stock-coverage/templatedata/article/generic/data/en/GR/000000/000000_insights_singapore_model_portfolio.xml" target="_blank" rel="noopener">DBS – Singapore Equity Picks (12 Nov 2026)</a></li>
+        <li><a href="https://drwealth.com/undervalued-stocks/" target="_blank" rel="noopener">Dr Wealth – undervalued STI stocks (P/B, yield)</a></li>
+        <li><a href="https://thesmartinvestor.com.sg/top-3-sgx-blue-chip-stocks-that-delivered-twice-the-stis-returns-ytd/" target="_blank" rel="noopener">The Smart Investor – SGX, OCBC, ST Engineering</a></li>
+        <li><a href="https://www.minichart.com.sg/2026/01/13/singapore-stock-market-outlook-2026-bullish-sti-forecast-top-picks-growth-drivers-maybank-research-summary/" target="_blank" rel="noopener">Maybank 2026 outlook (via Minichart)</a></li>
+        <li><a href="https://sgyieldhub.com/" target="_blank" rel="noopener">SGYieldHub – T-bill, SSB rates</a> · <a href="https://www.ssga.com/sg/en/institutional/etfs/state-street-spdr-straits-times-index-etf-es3" target="_blank" rel="noopener">SSGA – ES3</a></li>
+      </ul>
+    </div>
+  </section>
+
+  <p class="disc">For information only. Not financial advice. Signals are rule-based from broker consensus and can be wrong. Prices are a 20 Nov 2026 snapshot; always check live prices before trading. Past performance does not guarantee future results.</p>
+</main>
+
+<script>
+/* ---------- DATA (edit here to refresh) ---------- */
+const AS_AT = "20 Nov 2026";
+// n=name, c=code, s=sector, p=price S$, tp=avg target, b/h/sl=analyst Buy/Hold/Sell, y=yield text, r=risk, pick=shortlist
+const STOCKS = [
+ {n:"DBS",c:"D05",s:"Banks",p:66.28,tp:79.904,b:5,h:0,sl:0,y:"4.4–5.4%*",r:"Low",pick:true,
+  note:["Largest STI weight (about 29%). 5 of 5 analysts say Buy.","Banks keep strong capital buffers (CET1 above 15%).","Watch: lower interest rates can squeeze margins; 3Q results."]},
+ {n:"OCBC",c:"O39",s:"Banks",p:26.49,tp:32.778,b:4,h:0,sl:0,y:"4.4–5.4%*",r:"Low",pick:true,
+  note:["Maybank top pick for 2026; DBS Research sector pick.","Total return 36.2% year to 8 Jul 2026, well ahead of the STI ETF (16.3%).","Watch: big run-up, so wait for pullbacks to add."]},
+ {n:"UOB",c:"U11",s:"Banks",p:35.45,tp:42.248,b:2,h:3,sl:0,y:"4.4–5.4%*",r:"Low",
+  note:["Analysts are split: 2 Buy, 3 Hold.","Less conviction than DBS or OCBC. Better as a pullback buy."]},
+ {n:"Singtel",c:"Z74",s:"Telecom",p:4.16,tp:5.356,b:5,h:0,sl:0,y:"4.4%",r:"Medium",pick:true,
+  note:["5 of 5 analysts say Buy. Maybank target S$5.22 is close to the price.","DBS Research kept it for the 4.4% yield but cut its position after S$4.15–4.20 support was tested repeatedly.","Watch: S$4.15 support level."]},
+ {n:"CapitaLand Integrated Commercial Trust",c:"C38U",s:"REIT",p:2.31,tp:2.72,b:3,h:0,sl:0,y:"–",r:"Medium",pick:true,
+  note:["Maybank top pick for 2026. 3 of 3 analysts say Buy.","Watch: REITs are sensitive to bond yields and T-bill rates."]},
+ {n:"CapitaLand Ascendas REIT",c:"A17U",s:"REIT",p:2.12,tp:3.017,b:3,h:0,sl:0,y:"6.8%",r:"Medium",force:"Watch",
+  note:["Price-to-book 0.95, yield about 6.8% (Oct).","DBS Research removed it from its Dividend picks at S$2.23 on 12 Nov.","The average target looks high versus price. Check the latest broker reports."]},
+ {n:"Mapletree Logistics Trust",c:"M44U",s:"REIT",p:1.04,tp:1.25,b:1,h:1,sl:0,y:"6.6%",r:"Medium",
+  note:["Price-to-book 0.75, yield about 6.6% (Oct).","Mixed views: 1 Buy, 1 Hold."]},
+ {n:"ST Engineering",c:"S63",s:"Defence / Industrial",p:8.63,tp:11.834,b:4,h:1,sl:0,y:"–",r:"Medium",pick:true,
+  note:["Q1 2026 revenue up 11% to S$3.3B. Total return 33.7% year to 8 Jul.","DBS: Hold (target S$10.00). UOB Kay Hian: Buy (target S$10.97).","Watch: valuation after a big run."]},
+ {n:"SATS",c:"S58",s:"Aviation services",p:3.76,tp:4.982,b:5,h:0,sl:0,y:"–",r:"Medium",pick:true,
+  note:["5 of 5 analysts say Buy. Maybank target S$4.90, OCBC S$5.00.","DBS Research modestly added to its position.","Watch: high oil price."]},
+ {n:"Venture Corp",c:"V03",s:"Technology",p:13.97,tp:20.394,b:5,h:0,sl:0,y:"–",r:"Medium",pick:true,
+  note:["5 of 5 analysts say Buy.","DBS Research added it to its Dividend picks at S$14.20 on 10 Nov.","Watch: tech spending cycle and customer concentration."]},
+ {n:"Keppel",c:"BN4",s:"Conglomerate",p:8.81,tp:12.9,b:3,h:0,sl:0,y:"–",r:"Medium",
+  note:["3 of 3 analysts say Buy with a high average target.","Check the latest results before buying."]},
+ {n:"Yangzijiang Shipbuilding",c:"BS6",s:"Shipbuilding",p:4.27,tp:5.8,b:4,h:0,sl:0,y:"–",r:"Medium",
+  note:["4 of 4 analysts say Buy. UOB Kay Hian target S$5.30 (12 Nov).","Watch: shipping cycle and China exposure."]},
+ {n:"Sembcorp",c:"U96",s:"Utilities",p:5.48,tp:7.255,b:2,h:0,sl:0,y:"–",r:"Medium",
+  note:["DBS Research added to its Dividend picks at S$5.84 on 27 Oct. Price is now lower.","Only 2 analysts cover it here."]},
+ {n:"Singapore Exchange (SGX)",c:"S68",s:"Financial services",p:19.34,tp:20.15,b:0,h:2,sl:0,y:"–",r:"Low",
+  note:["Total return 43.3% year to 8 Jul. Quarterly dividend to rise 0.25 cents each year to FY2028.","Little upside to the average target. Much of the good news looks priced in."]},
+ {n:"Singapore Airlines",c:"C6L",s:"Airlines",p:6.96,tp:6.934,b:0,h:4,sl:1,y:"–",r:"Medium",
+  note:["Price is at the average target. 4 Hold, 1 Sell.","Not a buy at current price on analyst views."]},
+ {n:"Genting Singapore",c:"G13",s:"Leisure",p:0.54,tp:0.63,b:0,h:2,sl:0,y:"6.6%",r:"Medium",
+  note:["Yield about 6.6% (Oct) but both analysts say Hold. Maybank target S$0.59."]},
+ {n:"Wilmar",c:"F34",s:"Food",p:2.84,tp:3.354,b:0,h:5,sl:0,y:"5.1%",r:"Medium",
+  note:["Price-to-book 0.65 and yield 5.1% (Oct). All 5 analysts say Hold."]},
+ {n:"City Developments",c:"C09",s:"Property",p:6.27,tp:11.344,b:5,h:0,sl:0,y:"4.7%",r:"High",
+  note:["Price-to-book 0.63, with a strategic review under way.","DBS Research added it, then trimmed after the market reacted badly to the review.","Event-driven. The huge target gap does not mean low risk."]},
+ {n:"Seatrium",c:"5E2",s:"Marine engineering",p:1.56,tp:2.925,b:2,h:0,sl:0,y:"1.6%",r:"High",
+  note:["DBS Research removed it after the price broke below its S$2.05 protective level. Price is now S$1.56.","Weak trend. Wait for it to stabilise."]},
+ {n:"UOL Group",c:"U14",s:"Property",p:7.31,tp:null,b:0,h:0,sl:0,y:"3.2%",r:"Medium",
+  note:["Price-to-book 0.56. 1H2026 operating profit up 16%.","No broker ratings in the source table. Check other research."]}
+];
+
+const FUNDS = [
+ {n:"SPDR STI ETF (ES3)",rate:"3.51% yield",rv:0.0351,min:"1 unit (~S$5)",lock:"None",note:"Tracks the STI. Cost 0.28% per year. Pays twice a year. Price can fall."},
+ {n:"Nikko / Amova STI ETF (G3B)",rate:"~3.8% yield (Apr)",rv:0.038,min:"1 unit",lock:"None",note:"Same 30 stocks as ES3. Yield figure is older (Apr 2026)."},
+ {n:"6-month T-bill",rate:"2.07%",rv:0.0207,min:"S$1,000",lock:"6 months",note:"Government-backed. Next auction 3 Dec (apply by 2 Dec, 9pm)."},
+ {n:"1-year T-bill",rate:"1.92%",rv:0.0192,min:"S$1,000",lock:"1 year",note:"Last auction 15 Oct 2026."},
+ {n:"Savings Bond (SBDEC26)",rate:"1.83% year 1 · 2.39% avg over 10 yrs",rv:0.0183,min:"S$500",lock:"None",note:"Apply by 25 Nov. Redeem any month, no penalty."},
+ {n:"Best 12-month fixed deposit",rate:"2.30%",rv:0.023,min:"S$10,000",lock:"12 months",note:"CIMB online promotion until 30 Nov. Conditions apply."},
+ {n:"Money market fund",rate:"~1.55% (Sep)",rv:0.0155,min:"S$100",lock:"None",note:"Not capital guaranteed. Typical 7-day yield."},
+ {n:"S-REITs (largest, trailing)",rate:"~6.2% yield",rv:0.0623,min:"1 lot",lock:"None",note:"Higher yield, but price risk and rate sensitivity."},
+ {n:"CPF Ordinary Account",rate:"2.50%",rv:0.025,min:"–",lock:"Restricted use",note:"Special / MediSave / Retirement accounts: 4.00%."}
+];
+
+/* ---------- STATE ---------- */
+const LS = {
+  get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+};
+let prices = LS.get("sgm_prices",{});      // code -> edited price
+let stars  = LS.get("sgm_stars",[]);       // codes
+let buyBelow = LS.get("sgm_buy",{});       // code -> number
+let sortK="up", sortDir=-1, open=null;
+
+const px = s => prices[s.c] ?? s.p;
+const upside = s => s.tp ? (s.tp/px(s)-1) : null;
+const total = s => s.b+s.h+s.sl;
+const buyPct = s => total(s)? s.b/total(s) : null;
+function signal(s){
+  if(!total(s)) return "No rating";
+  if(s.r==="High") return "High risk";
+  if(s.force) return s.force;
+  const u=upside(s), bp=buyPct(s);
+  if(total(s)>=3 && bp>=0.6 && u>=0.15) return "Buy-watch";
+  if(u<0.10 || bp<0.4 && s.b===0) return "Hold / avoid";
+  return "Watch";
+}
+const sigClass = {"Buy-watch":"t-buy","Watch":"t-watch","Hold / avoid":"t-hold","High risk":"t-risk","No rating":"t-hold"};
+const pct = v => v==null?"–":(v>=0?"+":"")+(v*100).toFixed(1)+"%";
+const money = v => v.toFixed(v<10?3:2);
+const link = s => `https://www.google.com/finance/quote/${s.c}:SGX`;
+
+/* ---------- RENDER ---------- */
+function renderStats(){
+  const es = {};
+  document.getElementById("stats").innerHTML = `
+    <div class="stat"><small>STI ETF (ES3)</small><b>S$5.07</b><span>−1.8% on 20 Nov · yield 3.5%</span></div>
+    <div class="stat"><small>6-month T-bill</small><b>2.07%</b><span>19 Nov auction</span></div>
+    <div class="stat"><small>Savings Bond (Dec)</small><b>1.83%</b><span>Year 1 · apply by 25 Nov</span></div>
+    <div class="stat"><small>S-REIT yield</small><b>~6.2%</b><span>Largest S-REITs, trailing</span></div>
+    <div class="stat"><small>DBS Research cash</small><b>50%</b><span>Waiting for better prices</span></div>`;
+}
+
+function renderPicks(){
+  const picks = STOCKS.filter(s=>signal(s)==="Buy-watch" && s.r!=="High")
+                      .sort((a,b)=>upside(b)-upside(a));
+  document.getElementById("pickList").innerHTML = picks.map(s=>`
+    <div class="pick">
+      <b>${s.n} <span class="muted">${s.c}</span></b>
+      <div>S$${money(px(s))} → target S$${money(s.tp)} <span class="up">${pct(upside(s))}</span></div>
+      <small>${s.b}/${total(s)} Buy · ${s.s}${s.y!=="–"?" · yield "+s.y:""}</small>
+    </div>`).join("") || "<p class='muted'>No stocks match the rule right now.</p>";
+
+  const avoid = STOCKS.filter(s=>["High risk","Hold / avoid"].includes(signal(s)));
+  document.getElementById("avoidList").innerHTML = "<ul>"+avoid.map(s=>
+    `<li><b>${s.n}</b> – <span class="tag ${sigClass[signal(s)]}">${signal(s)}</span> ${s.note[s.note.length-1]}</li>`).join("")+"</ul>";
+}
+
+function renderStocks(){
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  const fs = document.getElementById("fSector").value, fg = document.getElementById("fSig").value;
+  let rows = STOCKS.filter(s=>(!q||s.n.toLowerCase().includes(q)||s.c.toLowerCase().includes(q))
+                           &&(!fs||s.s===fs)&&(!fg||signal(s)===fg));
+  const key = {
+    n:s=>s.n, s:s=>s.s, p:px, tp:s=>s.tp??-1, up:s=>upside(s)??-9, bp:s=>buyPct(s)??-1,
+    y:s=>parseFloat(s.y)||0, sig:s=>signal(s)
+  }[sortK];
+  rows.sort((a,b)=>{const x=key(a),y=key(b);return (x>y?1:x<y?-1:0)*sortDir});
+
+  document.getElementById("tb").innerHTML = rows.map(s=>{
+    const u=upside(s), sg=signal(s), isOpen=open===s.c;
+    return `<tr class="row" data-c="${s.c}">
+      <td data-l="Stock"><b>${s.n}</b><br><span class="muted">${s.c}</span></td>
+      <td data-l="Sector">${s.s}</td>
+      <td class="num" data-l="Price (S$)"><span class="price" data-edit="${s.c}">${money(px(s))}</span></td>
+      <td class="num" data-l="Avg target">${s.tp?money(s.tp):"–"}</td>
+      <td class="num ${u==null?"":u>=0?"up":"dn"}" data-l="Upside">${pct(u)}</td>
+      <td data-l="Analysts B/H/S">${total(s)?`${s.b} / ${s.h} / ${s.sl}`:"–"}</td>
+      <td data-l="Yield">${s.y}</td>
+      <td data-l="Signal"><span class="tag ${sigClass[sg]}">${sg}</span></td>
+      <td data-l="Watch"><span class="star ${stars.includes(s.c)?"on":""}" data-star="${s.c}">★</span></td>
+    </tr>` + (isOpen?`<tr class="detail"><td colspan="9"><b>Review</b><ul>${s.note.map(n=>`<li>${n}</li>`).join("")}</ul>
+      <p class="links"><a href="${link(s)}" target="_blank" rel="noopener">Live price on Google Finance ↗</a></p></td></tr>`:"");
+  }).join("");
+}
+
+function renderFunds(){
+  document.getElementById("fundTb").innerHTML = FUNDS.map(f=>
+    `<tr class="fund"><td data-l="Option"><b>${f.n}</b></td><td class="num" data-l="Rate">${f.rate}</td><td data-l="Minimum">${f.min}</td><td data-l="Lock-in">${f.lock}</td><td data-l="Notes">${f.note}</td></tr>`).join("");
+  const a = parseFloat(document.getElementById("amt").value)||0;
+  document.getElementById("calc").innerHTML = FUNDS.map(f=>
+    `<tr><td>${f.n}</td><td class="num">${(a*f.rv).toLocaleString("en-SG",{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`).join("");
+}
+
+function renderWatch(){
+  const list = STOCKS.filter(s=>stars.includes(s.c));
+  document.getElementById("wEmpty").style.display = list.length?"none":"block";
+  document.getElementById("wTb").innerHTML = list.map(s=>{
+    const bb = buyBelow[s.c]; const inZone = bb && px(s)<=bb;
+    return `<tr><td><b>${s.n}</b><br><span class="muted">${s.c} · ${signal(s)}</span></td>
+      <td class="num">${money(px(s))}</td>
+      <td class="num"><input type="number" step="0.01" style="width:90px" value="${bb??""}" data-bb="${s.c}" placeholder="e.g. ${(px(s)*0.95).toFixed(2)}"></td>
+      <td>${bb?(inZone?'<span class="zone">✔ In buy zone</span>':`Wait (${(((px(s)/bb)-1)*100).toFixed(1)}% above)`):'<span class="muted">Set a price</span>'}</td></tr>`;
+  }).join("");
+}
+
+function renderAll(){renderStats();renderPicks();renderStocks();renderFunds();renderWatch();}
+
+/* ---------- EVENTS ---------- */
+document.getElementById("tabs").addEventListener("click",e=>{
+  const t=e.target.closest(".tab"); if(!t) return;
+  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x===t));
+  document.querySelectorAll(".panel").forEach(x=>x.classList.toggle("on",x.id==="p-"+t.dataset.t));
+});
+document.getElementById("tbl").addEventListener("click",e=>{
+  const th=e.target.closest("th[data-k]");
+  if(th){ if(sortK===th.dataset.k) sortDir*=-1; else {sortK=th.dataset.k; sortDir=-1;} return renderStocks(); }
+  const star=e.target.closest("[data-star]");
+  if(star){ const c=star.dataset.star; stars = stars.includes(c)?stars.filter(x=>x!==c):[...stars,c]; LS.set("sgm_stars",stars); renderStocks(); return renderWatch(); }
+  const ed=e.target.closest("[data-edit]");
+  if(ed){ e.stopPropagation(); const c=ed.dataset.edit, s=STOCKS.find(x=>x.c===c);
+    const v=parseFloat(prompt("New price for "+s.n+" (S$):",px(s)));
+    if(v>0){prices[c]=v;LS.set("sgm_prices",prices);renderAll();} return; }
+  const row=e.target.closest("tr.row");
+  if(row){ open = open===row.dataset.c?null:row.dataset.c; renderStocks(); }
+});
+["q","fSector","fSig"].forEach(id=>document.getElementById(id).addEventListener("input",renderStocks));
+document.getElementById("amt").addEventListener("input",renderFunds);
+document.getElementById("resetPx").addEventListener("click",()=>{prices={};LS.set("sgm_prices",prices);renderAll();});
+document.getElementById("wTb").addEventListener("input",e=>{
+  const c=e.target.dataset.bb; if(!c) return;
+  const v=parseFloat(e.target.value); if(v>0) buyBelow[c]=v; else delete buyBelow[c];
+  LS.set("sgm_buy",buyBelow);
+});
+document.getElementById("wTb").addEventListener("change",renderWatch);
+
+/* sector filter options */
+[...new Set(STOCKS.map(s=>s.s))].sort().forEach(s=>{
+  const o=document.createElement("option");o.textContent=s;o.value=s;document.getElementById("fSector").appendChild(o);
+});
+renderAll();
+</script>
+</body>
+</html>
